@@ -1,0 +1,19 @@
+sequence_length: 64
+num_layers: 64
+
+mask_config:
+  mask_type: "causal"
+  window_size: null
+attention_config:
+  num_heads: 1
+  alibi_slopes: [[1.0]]
+  head_weights: null
+  softmax_temperature: 1.0
+content_config:
+  diagonal_scores: [[0.0]]
+  base_scores: [[0.0]]
+lambda_schedule_config:
+  schedule_type: "constant"
+  lambda_const: 0.2
+
+save_dir: ./results/rollout
