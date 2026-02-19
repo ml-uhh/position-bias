@@ -1,0 +1,26 @@
+num_batches: 1000
+batch_size: 1
+
+save_path: /data/shared_data/position-bias/results-final-fineweb-edu
+
+sequence_length: 2048
+
+hf_model_config:
+  model_id: bigscience/bloom-7b1
+  cache_dir: /data/shared_data/position-bias/cache
+
+dataset_config:
+  dataset_name: fineweb-edu
+
+wandb_config:
+  project: position-bias
+  dir: ./wandb/bloom-7b1-2048
+  name: bloom-7b1-2048
+  notes: Experiment 1 on Bloom-7B1 model using FineWeb-Edu dataset.
+  tags: [bloom-7b1, alibi]
+  group: alibi
+  job_type: evaluating
+
+enable_attention_stats: true
+enable_attribution: true
+enable_qk_stats: true

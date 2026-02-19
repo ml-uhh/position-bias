@@ -1,0 +1,89 @@
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
+
+repos:
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.10.4
+    hooks:
+      - id: uv-lock
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: debug-statements
+      - id: name-tests-test
+      - id: requirements-txt-fixer
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.1
+    hooks:
+      - id: ruff
+        types_or: [python, pyi, jupyter]
+        args:
+          [
+            "--select=ALL",
+            # Ignore specific rules
+            "--ignore=E501",  # line-too-long - We don't care, since everyone can use their own editor settings
+            "--ignore=F722",  # forward-annotation-syntax-error - Does not work well with jaxtyping
+            "--ignore=F821",  # undefined-name - Does not work well with jaxtyping
+            "--ignore=S101",  # assert - We actually like asserts
+            "--ignore=FIX", # fixme, todo, xxx, hack - Should not cause pre-commit failures. Only warning.
+            "--ignore=FBT001", # boolean-type-hint-positional-argument - Booleans are fine as positional arguments
+            "--ignore=ERA001", # commented-out-code - Should not cause pre-commit failures. Only warning.
+            "--ignore=TD001", # invalid-todo-tag - Tags like FIXME should be allowed
+            "--ignore=TD002", # missing-todo-author - We have git blame for that
+            "--ignore=TD003", # missing-todo-link - Maybe we'll enable this later
+            "--ignore=FBT002", # boolean-default-value-positional-argument - Booleans are fine as positional arguments
+            "--ignore=RET504", # unnecessary-assign - often, unnecessary assignments are better for readability
+            "--ignore=D401", # non-imperative-mood - If docstrings are descriptive its good
+            "--ignore=EM101", # raw-string-in-exception - The rule makes sense, but the code looks ugly...
+            "--ignore=EM102", # f-string-in-exception - The rule makes sense, but the code looks ugly...
+            "--ignore=TRY003", # raise-vanilla-args - The rule makes sense, but the code looks ugly...
+            "--ignore=G004", # logging-f-string - Seems fine to use f-strings in logging
+            "--ignore=S311", # suspicious-non-cryptographic-random-usage - We aren't really concerned about cryptographic security
+            "--ignore=D203", # incorrect-blank-line-before-class - Incompatible with D211 and ugly
+            "--ignore=D212", # multi-line-summary-first-line - We want D213, to have first line of docstring at the same indentation as the rest
+            "--ignore=PLR0913", # too-many-arguments - Since we are giving arguments nice names, having many is ok
+            "--per-file-ignores=*.ipynb:T201", # print - Print statements are ok in notebooks
+            "--fix",
+          ]
+      - id: ruff-format
+        types_or: [python, pyi, jupyter]
+
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.408
+    hooks:
+      - id: pyright
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.18.2
+    hooks:
+      - id: mypy
+        args: [--strict, --ignore-missing-imports, --explicit-package-bases]
+        additional_dependencies: [types-pyyaml, wandb, jaxtyping]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.25
+    hooks:
+      - id: validate-pyproject
+        additional_dependencies: ["validate-pyproject-schema-store[all]"]
+
+  - repo: https://github.com/hukkin/mdformat
+    rev: 0.7.22
+    hooks:
+      - id: mdformat
+        additional_dependencies:
+          - mdformat-dollarmath # Dollar math support
+          - mdformat-gfm # GitHub-Flavored Markdown support
+          - mdformat-ruff # Python code formatting
+          - mdformat-frontmatter # YAML frontmatter support
+          - ruff # Required for mdformat-ruff

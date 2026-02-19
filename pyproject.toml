@@ -1,0 +1,56 @@
+[project]
+name = "position-bias"
+version = "0.1.0"
+description = "position-bias"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "structlog>=25.5.0",
+    "accelerate>=1.12.0",
+    "torch>=2.9.1",
+    "transformers>=4.57.3",
+    "pydantic>=2.12.5",
+    "pydantic-yaml>=1.6.0",
+    "typer>=0.21.1",
+    "jaxtyping>=0.3.5",
+    "datasets>=4.4.2",
+    "einops>=0.8.1",
+    "wandb>=0.23.1",
+    "ipykernel>=7.1.0",
+    "plotly>=6.5.1",
+    "ipywidgets>=8.1.8",
+    "nbformat>=5.10.4",
+    "kaleido>=0.2.1",
+    "matplotlib>=3.10.8",
+    "scienceplots>=2.2.0",
+    "zstandard>=0.25.0",
+    "torchtune>=0.6.1",
+    "torchao>=0.15.0",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.5.1",
+    "scipy>=1.17.0",
+]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+
+[tool.ruff.lint.isort]
+known-third-party = [
+    "structlog",
+    "accelerate",
+    "torch",
+    "transformers",
+    "pydantic",
+    "pydantic-yaml",
+    "typer",
+    "jaxtyping",
+    "datasets",
+    "einops",
+    "wandb",
+]
+force-sort-within-sections = true
+combine-as-imports = true

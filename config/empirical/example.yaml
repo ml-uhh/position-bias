@@ -1,0 +1,28 @@
+num_batches: 10
+batch_size: 1
+
+save_path: /data/shared_data/position-bias/example
+
+sequence_length: 256
+
+hf_model_config:
+  model_id: tiiuae/falcon-rw-7b
+  cache_dir: /data/shared_data/position-bias/cache
+  max_memory:
+    0: 40GB
+
+dataset_config:
+  dataset_name: fineweb-edu
+
+wandb_config:
+  project: position-bias-example
+  dir: ./wandb/example
+  name: example
+  notes: Example experiment on Falcon-RW-7B model using FineWeb-Edu dataset.
+  tags: [falcon-rw-7b, alibi]
+  group: alibi
+  job_type: evaluating
+
+enable_attention_stats: true
+enable_attribution: true
+enable_qk_stats: true
