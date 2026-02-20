@@ -102,7 +102,7 @@ If you find our work useful, please consider citing:
 @inproceedings{author2026title,
   title={A Residual-Aware Theory of Position Bias in Transformers},
   author={Herasimchyk, Hanna and Labryga, Robin and Prusina, Tomislav and Laue, Sören},
-  booktitle={},
+  booktitle={arXiv preprint arXiv:2602.16837},
   year={2026}
 }
 ```
