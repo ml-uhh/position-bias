@@ -1,7 +1,6 @@
 # A Residual-Aware Theory of Position Bias in Transformers
 
-[![Paper](https://img.shields.io/badge/ArXiv-XXXX.XXXXX-red.svg)](%5BLink%5D)
-[![Conference](https://img.shields.io/badge/ICML-2026-blue.svg)](%5BLink%5D)
+[![Paper](https://img.shields.io/badge/ArXiv-2602.16837-red.svg)](%5BLink%5D)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 > **Abstract:** Transformer models systematically favor certain token positions, yet the architectural origins of this position bias remain poorly understood. Under causal masking at infinite depth, prior theoretical analyses of attention rollout predict an inevitable collapse of attention onto the first token. Such collapse, however, does not occur in practice. We resolve this discrepancy with a residual-aware theory of cumulative attention rollout. By incorporating residual connections, we show that this architectural component prevents collapse under realistic conditions. At finite depth, we prove that causal Transformers induce a U-shaped position bias, with attention concentrating on early and late tokens. This provides a principled architectural explanation for the Lost-in-the-Middle phenomenon.
@@ -99,7 +98,7 @@ We provide instructions on how to reproduce each figure from the paper in this t
 If you find our work useful, please consider citing:
 
 ```bibtex
-@inproceedings{author2026title,
+@inproceedings{herasimchyk2026residual,
   title={A Residual-Aware Theory of Position Bias in Transformers},
   author={Herasimchyk, Hanna and Labryga, Robin and Prusina, Tomislav and Laue, Sören},
   booktitle={arXiv preprint arXiv:2602.16837},
