@@ -83,7 +83,7 @@ We provide instructions on how to reproduce each figure from the paper in this t
 | Fig. 2/3 (b)  | Rollout distribution with residuals                                                      | Run any config in `config/rollout/no_content/`. The lambda schedule is taken from the wandb records of the mean residual connection strength per layer.                                                                              |
 | Fig. 2/3 (c)  | Rollout distribution with residuals and content                                          | Run any config in `config/rollout/all_content/`. The content per head and layer is converted from the records using `src/visualization/attention_stats.ipynb`.                                                                       |
 | Fig. 2/3 (d)  | Rollout distribution measured on pre-trained models                                      | Run any config in `config/empirical/` with `enable_attribution: true`. Use `src/visualization/input_token_influence.ipynb` to produce the plots.                                                                                     |
-| Table 2/3/4/5 | Spearman's correlation / Wasserstein distance between measured and theoretical rollouts  | Run any config in `config/empirical/` with `enable_attribution: true` and any config in `config/rollout/all_content/`. Use `src/influence_stats.ipynb` to produce the values.                                                        |
+| Table 2/3/4/5 | Wasserstein distance between measured and theoretical rollouts  | Run any config in `config/empirical/` with `enable_attribution: true` and any config in `config/rollout/all_content/`. Use `src/influence_stats.ipynb` to produce the values.                                                        |
 | Table 6       | The similarity within the diagonal and within the off-diagonal of the attention matrices | Run any config in `config/empirical/` with `enable_qk_stats: true`. Values are read from the records using `src/visualization/attention_stats.ipynb`                                                                                 |
 | Fig. 5        | Heatmaps of the attention matrices                                                       | Run any config in `config/empirical/` with `enable_qk_stats: true`. Values are read from the records and converted to usable heatmaps using `src/visualization/attention_heatmaps.ipynb`                                             |
 
@@ -92,7 +92,7 @@ We provide instructions on how to reproduce each figure from the paper in this t
 If you find our work useful, please consider citing:
 
 ```bibtex
-@inproceedings{herasimchyk2026residual,
+@inproceedings{herasimchyk2026positionbias,
   title={A Structural Theory of Position Bias in Transformers},
   author={Herasimchyk, Hanna and Labryga, Robin and Prusina, Tomislav and Laue, Sören},
   booktitle={arXiv preprint arXiv:2602.16837},
