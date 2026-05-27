@@ -1,4 +1,4 @@
-# A Residual-Aware Theory of Position Bias in Transformers
+# A Strutural Theory of Position Bias in Transformers
 
 [![Paper](https://img.shields.io/badge/ArXiv-2602.16837-red.svg)](https://arxiv.org/abs/2602.16837)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -93,7 +93,7 @@ If you find our work useful, please consider citing:
 
 ```bibtex
 @inproceedings{herasimchyk2026residual,
-  title={A Residual-Aware Theory of Position Bias in Transformers},
+  title={A Structural Theory of Position Bias in Transformers},
   author={Herasimchyk, Hanna and Labryga, Robin and Prusina, Tomislav and Laue, Sören},
   booktitle={arXiv preprint arXiv:2602.16837},
   year={2026}
