@@ -42,12 +42,6 @@ The representative profiles below use 256-token FineWeb-Edu sequences.
 | :---: | :---: | :---: | :---: |
 | <img src="figures/readme/rope_attention_only.png" width="220" alt="RoPE attention-only rollout"> | <img src="figures/readme/rope_fixed_residual.png" width="220" alt="RoPE fixed-residual rollout"> | <img src="figures/readme/rope_adaptive.png" width="220" alt="RoPE adaptive residual-aware rollout"> | <img src="figures/readme/rope_measured.png" width="220" alt="Measured RoPE token influence"> |
 
-### Measured residual-mixing schedules
-
-| ALiBi models | RoPE models |
-| :---: | :---: |
-| <img src="figures/readme/lambda_alibi.png" width="440" alt="Measured ALiBi residual-mixing schedules"> | <img src="figures/readme/lambda_rope.png" width="440" alt="Measured RoPE residual-mixing schedules"> |
-
 ## Installation
 
 The environment is managed with [uv](https://docs.astral.sh/uv/):
