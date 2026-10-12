@@ -14,6 +14,14 @@ mixing-calibration, monotonicity, and intervention analyses.
 
 ## Overview
 
+Transformer models systematically favor some input positions over others. This
+position bias is closely connected to Lost-in-the-Middle behavior, where
+information placed near the center of a long context is underused. We show how
+such bias can originate in the causal Transformer architecture itself: causal
+masking induces primacy, residual preservation induces recency, and positional
+encoding shifts the transport kernels. Across depth, these competing effects
+produce broad, often U-shaped influence profiles.
+
 Causal attention alone drives rollout mass toward early tokens. A fixed
 residual weight slows this concentration but does not recover the profiles of
 pretrained Transformers. We instead use the layerwise transition
