@@ -98,23 +98,60 @@ def make_head_attention(
     mask: Bool[NDArray, "sequence_length sequence_length"],
     content_scores: Float[NDArray, "sequence_length sequence_length"],
     alibi_slope: float,
+    logit_correction: Float[NDArray, " sequence_length"]
+    | Float[NDArray, "sequence_length sequence_length"]
+    | None = None,
+    correction_strength: float = 1.0,
 ) -> Float[NDArray, "sequence_length sequence_length"]:
     """
     Compute single-head attention from content and ALiBi scores.
 
-    Combines content scores with ALiBi positional biases, applies temperature scaling and a masked row-wise softmax.
+    Combines content scores with ALiBi positional biases, applies temperature
+    scaling, an optional additive logit correction, and a masked row-wise softmax.
 
     Args:
         config: Attention configuration containing softmax temperature.
         mask: Boolean mask for valid positions.
         content_scores: Per-position content scores.
         alibi_slope: ALiBi slope for this head.
+        logit_correction: Optional additive correction added to the logits
+            before softmax. May be either a 1D vector ``c(j)`` of shape
+            ``(sequence_length,)`` (broadcast across queries — used by all
+            key-only correction modes) or a 2D matrix ``C(i, j)`` of shape
+            ``(sequence_length, sequence_length)`` (per-(query, key) entry —
+            used by the ``attention_delta`` mode).
+        correction_strength: Multiplicative gain applied after correction
+            normalization. This is where beta should be applied.
 
     Returns:
         The attention matrix for the head.
 
     """
     scores = content_scores + compute_alibi_scores(alibi_slope, mask)
+
+    if logit_correction is not None:
+        if logit_correction.ndim == 1:
+            # 1D key-only correction: std-match against the last row's logits
+            # over its causal support, broadcast over the query axis.
+            ref_logits = scores[-1, :]
+            sigma_logits = np.std(ref_logits[mask[-1]])
+            sigma_c = np.std(logit_correction)
+            if sigma_c > 0:
+                scaled = (sigma_logits / sigma_c) * logit_correction
+            else:
+                scaled = logit_correction
+            scores = scores + correction_strength * scaled[np.newaxis, :]
+        else:
+            # 2D (query, key) correction: std-match over the same causal
+            # support that both `scores` and the correction live on, so the
+            # rescale is dimensionally comparable to the 1D path.
+            sigma_logits = np.std(scores[mask])
+            sigma_c = np.std(logit_correction[mask])
+            if sigma_c > 0:
+                scaled = (sigma_logits / sigma_c) * logit_correction
+            else:
+                scaled = logit_correction
+            scores = scores + correction_strength * scaled
 
     scores = scores / config.softmax_temperature
     return compute_row_softmax(scores, mask)
@@ -126,17 +163,29 @@ def make_multihead_attention(
     mask: Bool[NDArray, "sequence_length sequence_length"],
     content_scores: Float[NDArray, "num_heads sequence_length sequence_length"],
     layer_index: int,
+    logit_correction: Float[NDArray, " sequence_length"]
+    | Float[NDArray, "sequence_length sequence_length"]
+    | None = None,
+    correction_strength: float = 1.0,
 ) -> Float[NDArray, "sequence_length sequence_length"]:
     """
     Compute weighted multi-head attention from per-head content scores and ALiBi.
 
-    Computes each head's attention and returns their weighted average according to the configuration (uniform if head_weights is None).
+    Computes each head's attention and returns their weighted average according
+    to the configuration (uniform if head_weights is None).
 
     Args:
         config: Attention configuration including head weights and slopes.
         mask: Boolean mask for valid positions.
         content_scores: Per-head content scores tensor.
         layer_index: Layer index selecting ALiBi slopes and head weights.
+        logit_correction: Optional additive correction added to logits before
+            softmax at each head. Either a 1D ``(sequence_length,)`` vector
+            broadcast over queries, or a 2D ``(sequence_length, sequence_length)``
+            matrix indexed by ``(query, key)``. Same correction is shared
+            across heads.
+        correction_strength: Multiplicative gain applied after correction
+            normalization.
 
     Returns:
         The aggregated attention matrix.
@@ -162,7 +211,44 @@ def make_multihead_attention(
                 min(h, len(config.alibi_slopes[layer_index]) - 1)
             ],
             content_scores=content_scores[h],
+            logit_correction=logit_correction,
+            correction_strength=correction_strength,
         )
         head_attention_weighted_average += head_weights[h] * head_attention
 
     return head_attention_weighted_average
+
+
+def aggregate_measured_attention(
+    config: AttentionConfig,
+    *,
+    head_attention: Float[
+        NDArray,
+        "num_heads sequence_length sequence_length",
+    ],
+    mask: Bool[NDArray, "sequence_length sequence_length"],
+    layer_index: int,
+) -> Float[NDArray, "sequence_length sequence_length"]:
+    """Aggregate measured per-head probability kernels without another softmax."""
+    layer_index = min(layer_index, len(config.alibi_slopes) - 1)
+    if config.head_weights is None:
+        head_weights = np.ones(config.num_heads, dtype=float) / config.num_heads
+    else:
+        head_weights = np.asarray(config.head_weights[layer_index], dtype=float)
+        head_weights = head_weights / head_weights.sum()
+
+    if not np.all(np.isfinite(head_attention)):
+        raise ValueError("Measured attention contains non-finite values")
+    if np.any(head_attention < -1e-8):
+        raise ValueError("Measured attention contains negative probabilities")
+    if np.any(np.abs(head_attention[:, ~mask]) > 1e-6):
+        raise ValueError("Measured attention has mass outside the configured mask")
+
+    row_sums = head_attention.sum(axis=-1)
+    if not np.allclose(row_sums, 1.0, atol=1e-5, rtol=1e-5):
+        max_error = float(np.max(np.abs(row_sums - 1.0)))
+        raise ValueError(
+            f"Measured attention rows are not normalized; max error={max_error:.3e}",
+        )
+
+    return np.einsum("h,hqk->qk", head_weights, head_attention)

@@ -1,117 +1,158 @@
-# A Strutural Theory of Position Bias in Transformers
+# A Structural Theory of Position Bias in Transformers
 
-[![Paper](https://img.shields.io/badge/ArXiv-2602.16837-red.svg)](https://arxiv.org/abs/2602.16837)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+Code for [A Structural Theory of Position Bias in Transformers](https://arxiv.org/abs/2602.16837)
+by Hanna Herasimchyk, Robin Labryga, Tomislav Prusina, and Sören Laue.
 
-> **Abstract:** Transformer models systematically favor certain token positions, yet the architectural origins of this position bias remain poorly understood. This bias is closely connected to the Lost-in-the-Middle phenomenon, where models underutilize information placed in the middle of the context. We show that Lost-in-the-Middle-type behavior can arise from the architecture of causal Transformers itself. To do so, we develop a structural theory of position bias based on residual-aware cumulative attention rollout. At finite depth, causal masking and residual connections induce broad, often U-shaped, influence profiles. At infinite depth, our framework resolves a discrepancy between prior attention-only collapse theory and practical Transformer behavior: residual connections fundamentally change cumulative attention dynamics. Empirically, the predicted profiles closely match measured input-token influence in pretrained language models.
+This repository reproduces the measurements, controlled rollouts, ablations,
+tables, and figures reported in the accompanying paper. It covers five ALiBi
+models and five RoPE models on FineWeb-Edu, DCLM-Baseline, and Wikipedia at
+sequence length 256, together with the 2048-token, blank-out, approximation,
+mixing-calibration, monotonicity, and intervention analyses.
 
-| ![Last token rollout distribution without residual connections](figures/no_residual.png) | ![Last token rollout distribution with residual connections](figures/bloom.png) | ![Last token rollout distribution with residual connections and content](figures/bloom_content.png) | ![Last token rollout distribution measured on a pre-trained model](figures/iti_bigscience_bloom_HuggingFaceFW_fineweb-edu_256.png) |
-| :--------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------------: |
-|                               Without residual connections                               |                            With residual connections                            |                                     With residuals and content                                      |                                                  Measured on a pre-trained model                                                   |
+## Installation
 
-______________________________________________________________________
-
-## 🛠️ Setup
-
-### Installation
-
-You should have [uv](https://docs.astral.sh/uv/) installed.
+The environment is managed with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-# Clone the repo
-git clone https://github.com/ml-uhh/position-bias.git
-cd position-bias
-
-# Sync environment
 uv sync
+cp .env.example .env
 ```
 
-### Data Preparation
+Set `HF_TOKEN` in `.env` if a Hugging Face access token is required in your
+environment. Model weights and datasets are read from the Hugging Face Hub and
+cached under `HF_HOME`.
 
-All folders used for storing datasets, models, and results are specifiable.
-Check the following files to match your local setup:
+## Reproduction interface
 
-- `config/*`
-- `.env`
-
-______________________________________________________________________
-
-## 🚀 Running
-
-### Measurement Experiments
-
-To run an experiment, which measures values on pre-trained models, use:
+`reproduce.py` is the single entry point. Commands accept `--models` and
+`--datasets` filters, so the same interface supports a quick verification run,
+one paper row, or the complete experiment matrix.
 
 ```bash
-uv run --env-file .env -m src.main config/empirical/example.yaml
+# Validate the environment and generated experiment configurations.
+uv run python reproduce.py check
+
+# Download the public model snapshots and initialize dataset caches.
+uv run python reproduce.py download --models all --datasets all
+
+# Run the 256-token measurements and rollouts used in the central tables.
+uv run python reproduce.py run main --models all --datasets all
+
+# Run the 2048-token Wikipedia experiment.
+uv run python reproduce.py run context --models all
+
+# Run the influence-measurement, approximation, and monotonicity analyses.
+uv run python reproduce.py run blankout --models all
+uv run python reproduce.py run approximations --models all --datasets all
+uv run python reproduce.py run mixing --models all
+uv run python reproduce.py run monotonicity --models all --datasets all
+
+# Run the attention-branch intervention on the six paper models.
+uv run python reproduce.py run intervention --models all
+
+# Regenerate publication-ready CSV/LaTeX tables and PDF/PNG figures.
+uv run python reproduce.py render
 ```
 
-To run all experiments, use:
+For the RoPE monotonicity verification, the pipeline averages the unmixed
+projection-aware transport kernels and evaluates Assumption 4.1 directly. To
+run all RoPE models and all three corpora with 1,000 prompts each:
 
 ```bash
-./empirical.sh
+uv run python reproduce.py run monotonicity \
+  --models qwen2.5-7b,qwen2.5-32b,qwen2.5-72b,qwen3-8b-base,smollm3-3b-base \
+  --datasets all --prompts 1000
 ```
 
-### Rollout Experiments
+Replace `1000` by `10000` for the larger verification. Results are stored in
+prompt-count-specific directories, so the two runs cannot overwrite or
+silently reuse one another.
 
-To run a rollout experiment, use:
+For a small end-to-end verification before a full run:
 
 ```bash
-uv run --env-file .env -m src.rollout.main config/rollout/example.yaml
+uv run python reproduce.py run main \
+  --models qwen2.5-7b --datasets fineweb-edu --prompts 2
+uv run python reproduce.py render
 ```
 
-To run all rollout experiments, use:
+The gradient and RoPE rollout stages write resumable checkpoints and
+deterministic run metadata under `results/`. Re-running a completed command
+preserves completed outputs and continues incomplete runs. `paper_outputs/`
+contains the generated tables and figures.
+
+GPU selection follows the standard `CUDA_VISIBLE_DEVICES` environment
+variable. The models up to 8B run on one modern GPU, the 30B and 32B models can
+use one high-memory GPU or automatic multi-GPU placement, Qwen2.5-72B uses two
+high-memory GPUs, and BLOOM-176B uses four high-memory GPUs. The supplied Slurm
+script exposes the same stage, model, and dataset filters:
 
 ```bash
-./rollout.sh
+sbatch --export=ALL,STAGE=main,MODELS=qwen2.5-7b,DATASETS=fineweb-edu \
+  slurm/run_stage.sbatch
 ```
 
-All results will be saved both on wandb and on disk.
+## Experiment outputs
 
-### Visualization
+Each model, corpus, and sequence length uses the directory
+`results/<dataset>/<length>/<model>/` with the following subdirectories:
 
-To visualize the results from the experiments, use the notebooks provided in `src/visualization/`.
+- `attribution/`: corpus-mean next-token probability gradient profile;
+- `rollout/`: attention-only, fixed-residual, and adaptive rollout profiles,
+  norm-Shapley schedules, kernels, approximation statistics, and W1 metrics;
+- `blankout/`: blank-out and matched gradient profiles and metrics;
+- `monotonicity.csv`: layerwise and aggregate monotonicity statistics.
 
-### Reproducing Figures from the Paper
+Intervention results are stored in `results/intervention/<model>/`. Generated
+paper assets are stored in `paper_outputs/tables/` and
+`paper_outputs/figures/`.
 
-We provide instructions on how to reproduce each figure from the paper in this table:
+## Configuration
 
-| Figure        | Description                                                                              | Instructions                                                                                                                                                                                                                         |
-| ------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Fig. 1/4      | Measured lambda schedules on pre-trained models                                          | Run any config in `config/empirical/` with `enable_attention_stats: true`. Use `src/visualization/wandb.ipynb` to produce the plots.                                                                                                 |
-| Fig. 2/3 (a)  | Rollout distribution without residuals                                                   | Run any config in `config/rollout/` and set `schedule_type` to `constant` and `lambda_const` to `1.0` (or run any config that ends with `-noresidual.yaml`). The ALiBi slopes are computed from the standard slope formula per head. |
-| Fig. 2/3 (b)  | Rollout distribution with residuals                                                      | Run any config in `config/rollout/no_content/`. The lambda schedule is taken from the wandb records of the mean residual connection strength per layer.                                                                              |
-| Fig. 2/3 (c)  | Rollout distribution with residuals and content                                          | Run any config in `config/rollout/all_content/`. The content per head and layer is converted from the records using `src/visualization/attention_stats.ipynb`.                                                                       |
-| Fig. 2/3 (d)  | Rollout distribution measured on pre-trained models                                      | Run any config in `config/empirical/` with `enable_attribution: true`. Use `src/visualization/input_token_influence.ipynb` to produce the plots.                                                                                     |
-| Table 2/3/4/5 | Wasserstein distance between measured and theoretical rollouts  | Run any config in `config/empirical/` with `enable_attribution: true` and any config in `config/rollout/all_content/`. Use `src/influence_stats.ipynb` to produce the values.                                                        |
-| Table 6       | The similarity within the diagonal and within the off-diagonal of the attention matrices | Run any config in `config/empirical/` with `enable_qk_stats: true`. Values are read from the records using `src/visualization/attention_stats.ipynb`                                                                                 |
-| Fig. 5        | Heatmaps of the attention matrices                                                       | Run any config in `config/empirical/` with `enable_qk_stats: true`. Values are read from the records and converted to usable heatmaps using `src/visualization/attention_heatmaps.ipynb`                                             |
+`config/paper.json` is the authoritative experiment manifest. It records the
+public model identifiers, dataset identifiers and revisions, sample counts,
+sequence lengths, intervention factors, and ALiBi rollout configurations.
+`reproduce.py` materializes complete evaluation YAML files under
+`results/run_configs/`.
 
-## ✒️ Citation
+The main comparison uses normalized one-dimensional Wasserstein distance with
+ground metric `|i-j|/(n-1)`. The adaptive mixing coefficient is computed from
+the residual and attention branches using the norm-Shapley formula. Gradient
+and blank-out profiles are used only for evaluation, not for construction of
+the rollout kernels or mixing schedules.
+The mixing-coefficient ablation replaces norm-Shapley by the sequence-level
+Frobenius relative norm reported in the paper.
 
-If you find our work useful, please consider citing:
+## Tests
+
+```bash
+uv run pytest -q
+```
+
+The test suite checks source-contribution kernels, rollout normalization,
+blank-out evaluation, norm-Shapley calibration, and attention-branch
+intervention semantics without downloading model weights.
+
+To create a source-only archive:
+
+```bash
+uv run python scripts/build_archive.py
+```
+
+## Citation
 
 ```bibtex
-@inproceedings{herasimchyk2026positionbias,
-  title={A Structural Theory of Position Bias in Transformers},
-  author={Herasimchyk, Hanna and Labryga, Robin and Prusina, Tomislav and Laue, Sören},
-  booktitle={arXiv preprint arXiv:2602.16837},
-  year={2026}
+@article{herasimchyk2026structural,
+  title   = {A Structural Theory of Position Bias in Transformers},
+  author  = {Herasimchyk, Hanna and Labryga, Robin and Prusina, Tomislav and Laue, Sören},
+  journal = {arXiv preprint arXiv:2602.16837},
+  year    = {2026}
 }
 ```
 
-______________________________________________________________________
+## External assets
 
-## 🚧 Contributing
-
-To contribute you need to install pre-commit hooks.
-
-```bash
-uv run pre-commit install
-```
-
-To run the pre-commit hooks manually, use
-
-```bash
-uv run pre-commit run --all-files
-```
+The code downloads the exact public model and dataset repositories listed in
+`config/paper.json`. Their licenses and terms are available on the respective
+Hugging Face repository pages. No model weights or dataset samples are bundled
+with this repository.

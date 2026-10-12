@@ -1,1 +1,1 @@
-"""Source files for the position-bias project."""
+"""Residual-aware position-bias measurements and rollouts."""

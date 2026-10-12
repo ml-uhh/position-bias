@@ -10,16 +10,39 @@ from transformers.models.falcon.modeling_falcon import (
     FalconDecoderLayer,
     FalconForCausalLM,
 )
+from transformers.models.gemma2.modeling_gemma2 import (
+    Gemma2DecoderLayer,
+    Gemma2ForCausalLM,
+)
+from transformers.models.llama.modeling_llama import LlamaDecoderLayer, LlamaForCausalLM
+from transformers.models.mistral.modeling_mistral import (
+    MistralDecoderLayer,
+    MistralForCausalLM,
+)
 from transformers.models.mpt.modeling_mpt import MptBlock, MptForCausalLM
+from transformers.models.olmo3.modeling_olmo3 import Olmo3DecoderLayer, Olmo3ForCausalLM
+from transformers.models.qwen2.modeling_qwen2 import Qwen2DecoderLayer, Qwen2ForCausalLM
+from transformers.models.qwen3.modeling_qwen3 import Qwen3DecoderLayer, Qwen3ForCausalLM
+from transformers.models.smollm3.modeling_smollm3 import (
+    SmolLM3DecoderLayer,
+    SmolLM3ForCausalLM,
+)
 
 from src.models.bloom import BloomAttentionWrapper
 from src.models.falcon import FalconAttentionWrapper
+from src.models.gemma import Gemma2AttentionWrapper
+from src.models.llama import LlamaAttentionWrapper
+from src.models.mistral import MistralAttentionWrapper
 from src.models.mpt import MptAttentionWrapper
+from src.models.olmo3 import Olmo3AttentionWrapper
+from src.models.qwen2 import Qwen2AttentionWrapper
+from src.models.qwen3 import Qwen3AttentionWrapper
+from src.models.smollm3 import SmolLM3AttentionWrapper
 
 logger = structlog.get_logger()
 
 
-def wrap_attention_layers(model: nn.Module, sequence_length: int) -> None:
+def wrap_attention_layers(model: nn.Module, sequence_length: int) -> None:  # noqa: C901, PLR0912, PLR0915
     """
     Replace supported model attention layers with wrapper implementations.
 
@@ -70,6 +93,97 @@ def wrap_attention_layers(model: nn.Module, sequence_length: int) -> None:
                     sequence_length=sequence_length,
                 ).to(device=device, dtype=dtype)
                 layer.attn.load_state_dict(attn_weights)
+        case Gemma2ForCausalLM():
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, Gemma2DecoderLayer)
+
+                attn_weights = layer.self_attn.state_dict()
+                device = layer.self_attn.q_proj.weight.device
+                dtype = layer.self_attn.q_proj.weight.dtype
+                layer.self_attn = Gemma2AttentionWrapper(
+                    config=model.config,
+                    layer_idx=layer_idx,
+                    sequence_length=sequence_length,
+                ).to(device=device, dtype=dtype)
+                layer.self_attn.load_state_dict(attn_weights)
+        case LlamaForCausalLM():
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, LlamaDecoderLayer)
+
+                attn_weights = layer.self_attn.state_dict()
+                device = layer.self_attn.q_proj.weight.device
+                dtype = layer.self_attn.q_proj.weight.dtype
+                layer.self_attn = LlamaAttentionWrapper(
+                    config=model.config,
+                    layer_idx=layer_idx,
+                    sequence_length=sequence_length,
+                ).to(device=device, dtype=dtype)
+                layer.self_attn.load_state_dict(attn_weights)
+        case MistralForCausalLM():
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, MistralDecoderLayer)
+
+                attn_weights = layer.self_attn.state_dict()
+                device = layer.self_attn.q_proj.weight.device
+                dtype = layer.self_attn.q_proj.weight.dtype
+                layer.self_attn = MistralAttentionWrapper(
+                    config=model.config,
+                    layer_idx=layer_idx,
+                    sequence_length=sequence_length,
+                ).to(device=device, dtype=dtype)
+                layer.self_attn.load_state_dict(attn_weights)
+        case Qwen2ForCausalLM():
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, Qwen2DecoderLayer)
+
+                attn_weights = layer.self_attn.state_dict()
+                device = layer.self_attn.q_proj.weight.device
+                dtype = layer.self_attn.q_proj.weight.dtype
+                layer.self_attn = Qwen2AttentionWrapper(
+                    config=model.config,
+                    layer_idx=layer_idx,
+                    sequence_length=sequence_length,
+                ).to(device=device, dtype=dtype)
+                layer.self_attn.load_state_dict(attn_weights)
+        case Olmo3ForCausalLM():
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, Olmo3DecoderLayer)
+
+                attn_weights = layer.self_attn.state_dict()
+                device = layer.self_attn.q_proj.weight.device
+                dtype = layer.self_attn.q_proj.weight.dtype
+                layer.self_attn = Olmo3AttentionWrapper(
+                    config=model.config,
+                    layer_idx=layer_idx,
+                    sequence_length=sequence_length,
+                ).to(device=device, dtype=dtype)
+                layer.self_attn.load_state_dict(attn_weights)
+        case Qwen3ForCausalLM():
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, Qwen3DecoderLayer)
+
+                attn_weights = layer.self_attn.state_dict()
+                device = layer.self_attn.q_proj.weight.device
+                dtype = layer.self_attn.q_proj.weight.dtype
+                layer.self_attn = Qwen3AttentionWrapper(
+                    config=model.config,
+                    layer_idx=layer_idx,
+                    sequence_length=sequence_length,
+                ).to(device=device, dtype=dtype)
+                layer.self_attn.load_state_dict(attn_weights)
+        case SmolLM3ForCausalLM():
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, SmolLM3DecoderLayer)
+
+                attn_weights = layer.self_attn.state_dict()
+                device = layer.self_attn.q_proj.weight.device
+                dtype = layer.self_attn.q_proj.weight.dtype
+                layer.self_attn = SmolLM3AttentionWrapper(
+                    config=model.config,
+                    layer_idx=layer_idx,
+                    sequence_length=sequence_length,
+                ).to(device=device, dtype=dtype)
+                layer.self_attn.load_state_dict(attn_weights)
         case _:
             logger.warning(
                 f"Model type {type(model)} not supported for wrapping attention layers.",
@@ -119,7 +233,7 @@ def _save_wrapper_stats_to_file(
     )
 
 
-def save_wrapper_stats(
+def save_wrapper_stats(  # noqa: C901, PLR0912, PLR0915
     model: nn.Module,
     save_path: Path,
     sequence_length: int,
@@ -250,6 +364,244 @@ def save_wrapper_stats(
                 global_prob_mean=global_prob_mean,
                 global_prob_var=global_prob_var,
             )
+        case Gemma2ForCausalLM():
+            global_qk_mean = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            global_qk_var = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, Gemma2DecoderLayer)
+                assert isinstance(layer.self_attn, Gemma2AttentionWrapper)
+
+                logger.info(f"Saving stats for layer {layer_idx}")
+                qk_mean = layer.self_attn.qk_sum / layer.self_attn.qk_count
+                qk_var = (
+                    layer.self_attn.qk_sum_sq / layer.self_attn.qk_count - qk_mean**2
+                )
+                global_qk_mean[layer_idx] = qk_mean
+                global_qk_var[layer_idx] = qk_var
+            torch.save(
+                global_qk_mean,  # pyright: ignore[reportAttributeAccessIssue]
+                save_path / "qk_mean.pt",
+            )
+            torch.save(
+                global_qk_var,
+                save_path / "qk_var.pt",
+            )
+        case LlamaForCausalLM():
+            global_qk_mean = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            global_qk_var = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, LlamaDecoderLayer)
+                assert isinstance(layer.self_attn, LlamaAttentionWrapper)
+
+                logger.info(f"Saving stats for layer {layer_idx}")
+                qk_mean = layer.self_attn.qk_sum / layer.self_attn.qk_count
+                qk_var = (
+                    layer.self_attn.qk_sum_sq / layer.self_attn.qk_count - qk_mean**2
+                )
+                global_qk_mean[layer_idx] = qk_mean
+                global_qk_var[layer_idx] = qk_var
+            torch.save(
+                global_qk_mean,  # pyright: ignore[reportAttributeAccessIssue]
+                save_path / "qk_mean.pt",
+            )
+            torch.save(
+                global_qk_var,
+                save_path / "qk_var.pt",
+            )
+        case MistralForCausalLM():
+            global_qk_mean = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            global_qk_var = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, MistralDecoderLayer)
+                assert isinstance(layer.self_attn, MistralAttentionWrapper)
+
+                logger.info(f"Saving stats for layer {layer_idx}")
+                qk_mean = layer.self_attn.qk_sum / layer.self_attn.qk_count
+                qk_var = (
+                    layer.self_attn.qk_sum_sq / layer.self_attn.qk_count - qk_mean**2
+                )
+                global_qk_mean[layer_idx] = qk_mean
+                global_qk_var[layer_idx] = qk_var
+            torch.save(
+                global_qk_mean,  # pyright: ignore[reportAttributeAccessIssue]
+                save_path / "qk_mean.pt",
+            )
+            torch.save(
+                global_qk_var,
+                save_path / "qk_var.pt",
+            )
+        case Qwen2ForCausalLM():
+            global_qk_mean = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            global_qk_var = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            global_prob_mean = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, Qwen2DecoderLayer)
+                assert isinstance(layer.self_attn, Qwen2AttentionWrapper)
+
+                logger.info(f"Saving stats for layer {layer_idx}")
+                qk_mean = layer.self_attn.qk_sum / layer.self_attn.qk_count
+                qk_var = (
+                    layer.self_attn.qk_sum_sq / layer.self_attn.qk_count - qk_mean**2
+                )
+                global_qk_mean[layer_idx] = qk_mean
+                global_qk_var[layer_idx] = qk_var
+                global_prob_mean[layer_idx] = (
+                    layer.self_attn.attention_probs_sum
+                    / layer.self_attn.attention_probs_count
+                )
+            torch.save(
+                global_qk_mean,  # pyright: ignore[reportAttributeAccessIssue]
+                save_path / "qk_mean.pt",
+            )
+            torch.save(
+                global_qk_var,
+                save_path / "qk_var.pt",
+            )
+            torch.save(
+                global_prob_mean,
+                save_path / "attention_probs_mean.pt",
+            )
+        case Olmo3ForCausalLM():
+            global_qk_mean = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            global_qk_var = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, Olmo3DecoderLayer)
+                assert isinstance(layer.self_attn, Olmo3AttentionWrapper)
+
+                logger.info(f"Saving stats for layer {layer_idx}")
+                qk_mean = layer.self_attn.qk_sum / layer.self_attn.qk_count
+                qk_var = (
+                    layer.self_attn.qk_sum_sq / layer.self_attn.qk_count - qk_mean**2
+                )
+                global_qk_mean[layer_idx] = qk_mean
+                global_qk_var[layer_idx] = qk_var
+            torch.save(
+                global_qk_mean,  # pyright: ignore[reportAttributeAccessIssue]
+                save_path / "qk_mean.pt",
+            )
+            torch.save(
+                global_qk_var,
+                save_path / "qk_var.pt",
+            )
+        case Qwen3ForCausalLM():
+            global_qk_mean = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            global_qk_var = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, Qwen3DecoderLayer)
+                assert isinstance(layer.self_attn, Qwen3AttentionWrapper)
+
+                logger.info(f"Saving stats for layer {layer_idx}")
+                qk_mean = layer.self_attn.qk_sum / layer.self_attn.qk_count
+                qk_var = (
+                    layer.self_attn.qk_sum_sq / layer.self_attn.qk_count - qk_mean**2
+                )
+                global_qk_mean[layer_idx] = qk_mean
+                global_qk_var[layer_idx] = qk_var
+            torch.save(
+                global_qk_mean,  # pyright: ignore[reportAttributeAccessIssue]
+                save_path / "qk_mean.pt",
+            )
+            torch.save(
+                global_qk_var,
+                save_path / "qk_var.pt",
+            )
+        case SmolLM3ForCausalLM():
+            global_qk_mean = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            global_qk_var = torch.zeros(
+                len(model.model.layers),
+                model.config.num_attention_heads,
+                sequence_length,
+                sequence_length,
+            )
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, SmolLM3DecoderLayer)
+                assert isinstance(layer.self_attn, SmolLM3AttentionWrapper)
+
+                logger.info(f"Saving stats for layer {layer_idx}")
+                qk_mean = layer.self_attn.qk_sum / layer.self_attn.qk_count
+                qk_var = (
+                    layer.self_attn.qk_sum_sq / layer.self_attn.qk_count - qk_mean**2
+                )
+                global_qk_mean[layer_idx] = qk_mean
+                global_qk_var[layer_idx] = qk_var
+            torch.save(
+                global_qk_mean,  # pyright: ignore[reportAttributeAccessIssue]
+                save_path / "qk_mean.pt",
+            )
+            torch.save(
+                global_qk_var,
+                save_path / "qk_var.pt",
+            )
         case _:
             logger.warning(
                 f"Model type {type(model)} not supported for saving wrapper statistics.",
@@ -259,18 +611,33 @@ def save_wrapper_stats(
 def save_attribution_stats(
     attribution: torch.Tensor,
     save_path: Path,
+    per_head_attribution: torch.Tensor | None = None,
 ) -> None:
     """
     Save attribution statistics to disk.
 
-    Writes the attribution tensor to disk if it is non-empty, otherwise logs a warning and skips saving.
+    Writes the attribution tensor to disk if it is non-empty, otherwise logs
+    a warning and skips saving.
 
     Args:
-        attribution: Attribution tensor to save.
+        attribution: Attribution tensor of shape (num_layers, seq_len) giving,
+            for each decoder layer, the L2 norm over hidden of
+            d(||layer_output[:, -1, :]||_2) / d(inputs_embeds) averaged over
+            batches per input-token position.
         save_path: Directory to save the tensor to.
+        per_head_attribution: Optional per-head attribution tensor of shape
+            (num_layers, seq_len, num_heads) giving, for each decoder layer
+            and attention head, the L2 norm over head_dim of
+            d(||final_hidden[:, -1, :]||_2) / d(o_proj_input_head) averaged
+            over batches per input-token position.
 
     """
     if attribution.numel() == 0:
         logger.warning("Attribution tensor is empty. Skipping save.")
         return
     torch.save(attribution, save_path / "input_grad_l2_mean.pt")
+    if per_head_attribution is not None:
+        if per_head_attribution.numel() == 0:
+            logger.warning("Per-head attribution tensor is empty. Skipping save.")
+            return
+        torch.save(per_head_attribution, save_path / "input_grad_l2_per_head.pt")

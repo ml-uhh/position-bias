@@ -85,6 +85,7 @@ def plot_last_row_distribution(
     scores_product: Float[NDArray, "sequence_length sequence_length"],
     *,
     save_dir: Path | None = None,
+    filename_suffix: str = "",
 ) -> None:
     """
     Plot the distribution over token positions in the last row of the scores_product matrix.
@@ -94,6 +95,7 @@ def plot_last_row_distribution(
     Args:
         scores_product: 2D scores product matrix.
         save_dir: Optional directory to save the plot and CSV data.
+        filename_suffix: Suffix appended to output filenames (e.g. "_corrected").
 
     """
     import matplotlib.pyplot as plt  # noqa: PLC0415
@@ -101,9 +103,6 @@ def plot_last_row_distribution(
     sequence_length, _ = scores_product.shape
 
     row = scores_product[-1].copy()
-    s = row.sum()
-    if s > 0:
-        row /= s
 
     x = np.arange(sequence_length)
     fig, ax = plt.subplots(figsize=(4, 3), dpi=400)
@@ -113,14 +112,14 @@ def plot_last_row_distribution(
     if save_dir is not None:
         save_dir.mkdir(parents=True, exist_ok=True)
         fig.savefig(
-            save_dir / "last_row_distribution.pdf",
+            save_dir / f"last_row_distribution{filename_suffix}.pdf",
             bbox_inches="tight",
             dpi=400,
         )
 
         data_to_save = np.column_stack((x, row))
         np.savetxt(
-            save_dir / "last_row_distribution.csv",
+            save_dir / f"last_row_distribution{filename_suffix}.csv",
             data_to_save,
             delimiter=",",
             header="token_position,probability",

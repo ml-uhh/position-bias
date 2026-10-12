@@ -12,10 +12,21 @@ from transformers.models.falcon.modeling_falcon import (
     FalconDecoderLayer,
     FalconForCausalLM,
 )
+from transformers.models.gemma2.modeling_gemma2 import (
+    Gemma2DecoderLayer,
+    Gemma2ForCausalLM,
+)
+from transformers.models.llama.modeling_llama import LlamaDecoderLayer, LlamaForCausalLM
+from transformers.models.mistral.modeling_mistral import (
+    MistralDecoderLayer,
+    MistralForCausalLM,
+)
 from transformers.models.mpt.modeling_mpt import MptBlock, MptForCausalLM
+from transformers.models.qwen2.modeling_qwen2 import Qwen2DecoderLayer, Qwen2ForCausalLM
 import wandb
 
 from src.metrics.metrics import (
+    NormType,
     effective_attention_strength,
     effective_residual_strength,
 )
@@ -65,6 +76,7 @@ def create_residual_hook(
     ],
     storage: dict[str, Float[torch.Tensor, "batch_size sequence_length features"]],
     metrics: dict[int, dict[str, float | int]],
+    norm_type: NormType = "frobenius",
 ) -> Callable[
     [
         nn.Module,
@@ -103,21 +115,23 @@ def create_residual_hook(
         if residual_all_zero:
             logger.warning(
                 f"All-zero residual tensor at batch {batch_idx}, layer {layer_idx}. "
-                f"Possible bfloat16 underflow - consider using torch_dtype=torch.float16 or float32.",
+                f"Possible bfloat16 underflow - consider using dtype=torch.float16 or float32.",
             )
         if attention_all_zero:
             logger.warning(
                 f"All-zero attention_output tensor at batch {batch_idx}, layer {layer_idx}. "
-                f"Possible bfloat16 underflow - consider using torch_dtype=torch.float16 or float32.",
+                f"Possible bfloat16 underflow - consider using dtype=torch.float16 or float32.",
             )
 
         attn_strength = effective_attention_strength(
             residual=residual,
             attention_output=attention_output,
+            norm_type=norm_type,
         )
         res_strength = effective_residual_strength(
             residual=residual,
             attention_output=attention_output,
+            norm_type=norm_type,
         )
 
         attn_mean = attn_strength.mean().item()
@@ -183,6 +197,7 @@ def register_hooks(
         Float[torch.Tensor, "batch_size sequence_length features"],
     ],
     metrics: dict[int, dict[str, float | int]],
+    norm_type: NormType = "frobenius",
 ) -> tuple[torch.utils.hooks.RemovableHandle, torch.utils.hooks.RemovableHandle]:
     """Register hooks for attention and residual on a given layer."""
     handle_attention = attention.register_forward_hook(
@@ -200,15 +215,17 @@ def register_hooks(
             get_residual=get_residual,
             storage=hook_storage,
             metrics=metrics,
+            norm_type=norm_type,
         ),
     )
     return handle_attention, handle_residual
 
 
-def register_metric_hooks(
+def register_metric_hooks(  # noqa: C901, PLR0912
     model: torch.nn.Module,
     batch_idx: int,
     metrics: dict[int, dict[str, float | int]],
+    norm_type: NormType = "frobenius",
 ) -> list[torch.utils.hooks.RemovableHandle]:
     """
     Register hooks to log metrics for each transformer block.
@@ -217,6 +234,7 @@ def register_metric_hooks(
         model: The model to register hooks on.
         batch_idx: The current batch index.
         metrics: Dictionary to store computed metrics.
+        norm_type: Norm to use for strength metrics.
 
     Returns:
         List of hook handles that can be used to unregister the hooks.
@@ -244,6 +262,24 @@ def register_metric_hooks(
                         get_residual=lambda input_data: input_data[0],
                         hook_storage=hook_storage,
                         metrics=metrics,
+                        norm_type=norm_type,
+                    ),
+                )
+        case LlamaForCausalLM():
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, LlamaDecoderLayer)
+
+                hook_handles.extend(
+                    register_hooks(
+                        layer,
+                        layer.self_attn,
+                        batch_idx=batch_idx,
+                        layer_idx=layer_idx,
+                        get_attention=lambda output: output[0],
+                        get_residual=lambda input_data: input_data[0],
+                        hook_storage=hook_storage,
+                        metrics=metrics,
+                        norm_type=norm_type,
                     ),
                 )
         case BloomForCausalLM():
@@ -268,6 +304,58 @@ def register_metric_hooks(
                         get_residual=lambda input_data: input_data[0],
                         hook_storage=hook_storage,
                         metrics=metrics,
+                        norm_type=norm_type,
+                    ),
+                )
+        case Qwen2ForCausalLM():
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, Qwen2DecoderLayer)
+
+                hook_handles.extend(
+                    register_hooks(
+                        layer,
+                        layer.self_attn,
+                        batch_idx=batch_idx,
+                        layer_idx=layer_idx,
+                        get_attention=lambda output: output[0],
+                        get_residual=lambda input_data: input_data[0],
+                        hook_storage=hook_storage,
+                        metrics=metrics,
+                        norm_type=norm_type,
+                    ),
+                )
+        case MistralForCausalLM():
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, MistralDecoderLayer)
+
+                hook_handles.extend(
+                    register_hooks(
+                        layer,
+                        layer.self_attn,
+                        batch_idx=batch_idx,
+                        layer_idx=layer_idx,
+                        get_attention=lambda output: output[0],
+                        get_residual=lambda input_data: input_data[0],
+                        hook_storage=hook_storage,
+                        metrics=metrics,
+                        norm_type=norm_type,
+                    ),
+                )
+        case Gemma2ForCausalLM():
+            for layer_idx, layer in enumerate(model.model.layers):
+                assert isinstance(layer, Gemma2DecoderLayer)
+
+                hook_handles.extend(
+                    register_hooks(
+                        layer,
+                        layer.post_attention_layernorm,
+                        batch_idx=batch_idx,
+                        layer_idx=layer_idx,
+                        get_attention=lambda output: output,
+                        get_residual=lambda input_data: input_data[0],
+                        hook_storage=hook_storage,
+                        metrics=metrics,
+                        norm_type=norm_type,
                     ),
                 )
         case MptForCausalLM():
@@ -284,6 +372,7 @@ def register_metric_hooks(
                         get_residual=lambda input_data: input_data[0],
                         hook_storage=hook_storage,
                         metrics=metrics,
+                        norm_type=norm_type,
                     ),
                 )
         case _:

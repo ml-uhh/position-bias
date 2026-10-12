@@ -1,0 +1,120 @@
+{
+  "seed": 42,
+  "sequence_lengths": [256, 2048],
+  "datasets": {
+    "fineweb-edu": {
+      "repo_id": "HuggingFaceFW/fineweb-edu",
+      "sample": "sample-10BT",
+      "revision": "v1.4.0",
+      "split": "train"
+    },
+    "dclm-baseline": {
+      "repo_id": "mlfoundations/dclm-baseline-1.0",
+      "sample": null,
+      "revision": null,
+      "split": "train"
+    },
+    "wikipedia": {
+      "repo_id": "wikimedia/wikipedia",
+      "sample": "20231101.en",
+      "revision": null,
+      "split": "train"
+    }
+  },
+  "models": {
+    "falcon-rw-7b": {
+      "family": "alibi",
+      "model_id": "tiiuae/falcon-rw-7b",
+      "parameters": "7B",
+      "depth": 36,
+      "rollout_config": "config/alibi_rollout/falcon-rw-7b.yaml"
+    },
+    "mpt-7b": {
+      "family": "alibi",
+      "model_id": "anas-awadalla/mpt-7b",
+      "parameters": "7B",
+      "depth": 32,
+      "rollout_config": "config/alibi_rollout/mpt-7b.yaml"
+    },
+    "mpt-30b": {
+      "family": "alibi",
+      "model_id": "eluzhnica/mpt-30b-peft-compatible",
+      "parameters": "30B",
+      "depth": 48,
+      "rollout_config": "config/alibi_rollout/mpt-30b.yaml"
+    },
+    "bloom-7b1": {
+      "family": "alibi",
+      "model_id": "bigscience/bloom-7b1",
+      "parameters": "7.1B",
+      "depth": 30,
+      "rollout_config": "config/alibi_rollout/bloom-7b1.yaml"
+    },
+    "bloom-176b": {
+      "family": "alibi",
+      "model_id": "bigscience/bloom",
+      "parameters": "176B",
+      "depth": 70,
+      "rollout_config": "config/alibi_rollout/bloom.yaml"
+    },
+    "qwen2.5-7b": {
+      "family": "rope",
+      "model_id": "Qwen/Qwen2.5-7B",
+      "parameters": "7B",
+      "depth": 28
+    },
+    "qwen2.5-32b": {
+      "family": "rope",
+      "model_id": "Qwen/Qwen2.5-32B",
+      "parameters": "32B",
+      "depth": 64
+    },
+    "qwen2.5-72b": {
+      "family": "rope",
+      "model_id": "Qwen/Qwen2.5-72B",
+      "parameters": "72B",
+      "depth": 80
+    },
+    "qwen3-8b-base": {
+      "family": "rope",
+      "model_id": "Qwen/Qwen3-8B-Base",
+      "parameters": "8B",
+      "depth": 36
+    },
+    "smollm3-3b-base": {
+      "family": "rope",
+      "model_id": "HuggingFaceTB/SmolLM3-3B-Base",
+      "parameters": "3B",
+      "depth": 36
+    }
+  },
+  "main": {
+    "datasets": ["fineweb-edu", "dclm-baseline", "wikipedia"],
+    "sequence_length": 256,
+    "prompts": 1000
+  },
+  "context": {
+    "datasets": ["wikipedia"],
+    "sequence_length": 2048,
+    "prompts": 1000
+  },
+  "blankout": {
+    "datasets": ["fineweb-edu"],
+    "sequence_length": 256,
+    "prompts": 100
+  },
+  "intervention": {
+    "models": [
+      "bloom-7b1",
+      "mpt-7b",
+      "falcon-rw-7b",
+      "qwen2.5-7b",
+      "qwen3-8b-base",
+      "smollm3-3b-base"
+    ],
+    "dataset": "fineweb-edu",
+    "sequence_length": 256,
+    "prompts": 1024,
+    "betas": [0.8, 1.0, 1.2]
+  }
+}

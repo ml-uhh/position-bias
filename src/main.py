@@ -6,17 +6,13 @@ wrapping attention layers, computing attributions, and saving statistics and
 plots generated during evaluation.
 """
 
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import datasets
-from einops import rearrange
 import structlog
 import torch
 from torch import nn
-from torch.autograd.graph import save_on_cpu
-from torch.utils.checkpoint import checkpoint
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import (
@@ -35,6 +31,7 @@ from src.models.wrap import (
     save_wrapper_stats,
     wrap_attention_layers,
 )
+from src.util.causal_mask import disable_causal_mask
 from src.util.configs import EvalConfig
 from src.util.hooks import register_metric_hooks, unregister_hooks
 from src.util.pydantic import load_config
@@ -80,10 +77,15 @@ def setup_save_path(eval_config: EvalConfig) -> Path:
         Path: Path where evaluation outputs should be saved.
 
     """
+    seq_len_dir = f"{eval_config.sequence_length}"
+    if eval_config.disable_causal_mask:
+        seq_len_dir = f"{seq_len_dir}_unmasked"
+    if eval_config.run_name:
+        seq_len_dir = f"{seq_len_dir}_{eval_config.run_name}"
     save_path = (
         eval_config.save_path
         / f"{eval_config.hf_model_config.model_id.replace('/', '_')}"
-        / f"{eval_config.sequence_length}"
+        / seq_len_dir
     )
     if save_path.exists():
         confirm = typer.confirm(
@@ -102,7 +104,7 @@ def setup_save_path(eval_config: EvalConfig) -> Path:
     return save_path
 
 
-def load_model(eval_config: EvalConfig) -> tuple[PreTrainedModel, PreTrainedTokenizer]:  # noqa: C901
+def load_model(eval_config: EvalConfig) -> tuple[PreTrainedModel, PreTrainedTokenizer]:
     """
     Load model and tokenizer and prepare the model for evaluation.
 
@@ -130,48 +132,15 @@ def load_model(eval_config: EvalConfig) -> tuple[PreTrainedModel, PreTrainedToke
         device_map=model_config.device_map or "auto",
         max_memory=model_config.max_memory,
         dtype=torch.bfloat16,
+        attn_implementation="eager" if eval_config.disable_causal_mask else None,
     ).eval()
     model.requires_grad_(requires_grad=False)
 
-    if eval_config.enable_attribution and hasattr(
-        model,
-        "gradient_checkpointing_enable",
-    ):
-        model.gradient_checkpointing_enable(
-            gradient_checkpointing_kwargs={"use_reentrant": False},
-        )
-
-    if eval_config.enable_attribution:
-
-        def make_checkpointed_forward(
-            layer: nn.Module,
-        ) -> Callable[..., torch.Tensor]:
-            original_forward = layer.forward
-
-            def checkpointed_forward(
-                *args: Any,  # noqa: ANN401
-                **kwargs: Any,  # noqa: ANN401
-            ) -> torch.Tensor:
-                return checkpoint(
-                    original_forward,
-                    *args,
-                    **kwargs,
-                    use_reentrant=False,
-                )  # pyright: ignore[reportReturnType]
-
-            return checkpointed_forward
-
-        if hasattr(model, "model") and hasattr(model.model, "layers"):
-            for layer in model.model.layers:
-                layer.forward = make_checkpointed_forward(layer)
-        elif hasattr(model, "transformer") and hasattr(model.transformer, "h"):
-            for layer in model.transformer.h:  # pyright: ignore[reportAttributeAccessIssue,reportGeneralTypeIssues]
-                layer.forward = make_checkpointed_forward(layer)
-        elif hasattr(model, "transformer") and hasattr(model.transformer, "blocks"):
-            for layer in model.transformer.blocks:  # pyright: ignore[reportAttributeAccessIssue,reportGeneralTypeIssues]
-                layer.forward = make_checkpointed_forward(layer)
-
     model.config.use_cache = False
+
+    if eval_config.disable_causal_mask:
+        disable_causal_mask(model)
+        logger.info("Causal masking disabled (fully bidirectional attention).")
 
     if eval_config.enable_qk_stats:
         wrap_attention_layers(model, eval_config.sequence_length)
@@ -219,6 +188,19 @@ def setup_dataset(
     )
 
     return dataloader
+
+
+def close_dataloader_iterator(iterator: object) -> None:
+    """Close an interrupted DataLoader iterator and its streaming source."""
+    fetcher = getattr(iterator, "_dataset_fetcher", None)
+    dataset_iterator = getattr(fetcher, "dataset_iter", None)
+    close = getattr(dataset_iterator, "close", None)
+    if callable(close):
+        close()
+
+    shutdown_workers = getattr(iterator, "_shutdown_workers", None)
+    if callable(shutdown_workers):
+        shutdown_workers()
 
 
 def log_attention_stats(
@@ -281,7 +263,18 @@ def log_attention_stats(
         )
 
 
-def evaluate_model(
+def _get_decoder_layers(model: PreTrainedModel) -> list[nn.Module]:
+    """Return the list of decoder/transformer blocks for supported architectures."""
+    if hasattr(model, "model") and hasattr(model.model, "layers"):
+        return list(model.model.layers)
+    if hasattr(model, "transformer") and hasattr(model.transformer, "h"):
+        return list(model.transformer.h)  # pyright: ignore[reportAttributeAccessIssue,reportArgumentType,reportGeneralTypeIssues]
+    if hasattr(model, "transformer") and hasattr(model.transformer, "blocks"):
+        return list(model.transformer.blocks)  # pyright: ignore[reportAttributeAccessIssue,reportArgumentType,reportGeneralTypeIssues]
+    return []
+
+
+def evaluate_model(  # noqa: C901, PLR0915
     eval_config: EvalConfig,
     model: PreTrainedModel,
     dataloader: DataLoader,
@@ -302,9 +295,76 @@ def evaluate_model(
     metrics: dict[int, dict[str, float | int]] = {}
     attribution_sum: torch.Tensor | None = None
     attribution_count: torch.Tensor | None = None
+    per_head_attribution_sum: torch.Tensor | None = None
+    layer_outputs: list[torch.Tensor] = []
+    o_proj_inputs: list[torch.Tensor] = []
+    hook_handles_attr: list[torch.utils.hooks.RemovableHandle] = []
+    num_layers = 0
+    num_heads = 0
+    head_dim = 0
     if eval_config.enable_attribution:
-        attribution_sum = torch.zeros(eval_config.sequence_length, dtype=torch.float64)
-        attribution_count = torch.zeros(eval_config.sequence_length, dtype=torch.int64)
+        decoder_layers = _get_decoder_layers(model)
+        num_layers = len(decoder_layers)
+
+        attribution_sum = torch.zeros(
+            num_layers,
+            eval_config.sequence_length,
+            dtype=torch.float64,
+            device=model.device,
+        )
+        attribution_count = torch.zeros(
+            eval_config.sequence_length,
+            dtype=torch.int64,
+            device=model.device,
+        )
+
+        if eval_config.enable_attribution_per_head:
+            num_heads = model.config.num_attention_heads
+            hidden_size = model.config.hidden_size
+            head_dim = getattr(
+                model.config,
+                "head_dim",
+                hidden_size // num_heads,
+            )
+            per_head_attribution_sum = torch.zeros(
+                num_layers,
+                num_heads,
+                eval_config.sequence_length,
+                dtype=torch.float64,
+                device=model.device,
+            )
+
+        capture_enabled = False
+
+        def _capture_layer_output(
+            _module: nn.Module,
+            _args: tuple[Any, ...],
+            output: Any,  # noqa: ANN401
+        ) -> None:
+            if not capture_enabled:
+                return
+            hidden = output[0] if isinstance(output, tuple) else output
+            layer_outputs.append(hidden)
+
+        def _capture_o_proj_input(
+            _module: nn.Module,
+            args: tuple[Any, ...],
+        ) -> None:
+            if not capture_enabled:
+                return
+            o_proj_in = args[0]
+            o_proj_in.retain_grad()
+            o_proj_inputs.append(o_proj_in)
+
+        hook_handles_attr = [
+            layer.register_forward_hook(_capture_layer_output)
+            for layer in decoder_layers
+        ]
+        if eval_config.enable_attribution_per_head:
+            hook_handles_attr.extend(
+                layer.self_attn.o_proj.register_forward_pre_hook(_capture_o_proj_input)
+                for layer in decoder_layers
+            )
 
     for batch_idx, inputs in tqdm(enumerate(dataloader), total=eval_config.num_batches):
         if batch_idx >= eval_config.num_batches:
@@ -316,10 +376,16 @@ def evaluate_model(
                 model,
                 batch_idx,
                 metrics,
+                norm_type=eval_config.attention_stats_norm,
             )
 
         model.eval()
         if eval_config.enable_attribution:
+            assert attribution_sum is not None
+            assert attribution_count is not None
+
+            layer_outputs.clear()
+            o_proj_inputs.clear()
             embed_device = model.get_input_embeddings().weight.device
             attention_mask = inputs["attention_mask"].to(embed_device)
             inputs_embeds = model.get_input_embeddings()(
@@ -327,47 +393,93 @@ def evaluate_model(
             ).detach()
             inputs_embeds.requires_grad_(requires_grad=True)
 
-            with save_on_cpu(pin_memory=True):
-                outputs = model(
-                    inputs_embeds=inputs_embeds,
-                    attention_mask=attention_mask,
-                    use_cache=False,
-                )
-                logits = outputs.logits
-                probs = torch.softmax(logits[:, -1, :].float(), dim=-1)
-                target_ids = probs.argmax(dim=-1)
-                target_probs = rearrange(
-                    probs.gather(1, rearrange(target_ids, "b -> b 1")),
-                    "b 1 -> b",
-                )
+            capture_enabled = True
+            # with save_on_cpu(pin_memory=True):
+            outputs = model(
+                inputs_embeds=inputs_embeds,
+                attention_mask=attention_mask,
+                use_cache=False,
+            )
+            capture_enabled = False
 
-            grads = torch.autograd.grad(
-                target_probs.sum(),
-                inputs_embeds,
-                retain_graph=False,
-            )[0]
-            grad_norms = grads.norm(dim=-1)
+            assert len(layer_outputs) == num_layers, (
+                f"Captured {len(layer_outputs)} layer outputs, expected {num_layers}."
+            )
+            if eval_config.enable_attribution_per_head:
+                assert len(o_proj_inputs) == num_layers, (
+                    f"Captured {len(o_proj_inputs)} o_proj inputs, "
+                    f"expected {num_layers}."
+                )
+            per_layer_grads = []
+            per_layer_head_grads: list[torch.Tensor] = []
+            for layer_idx, hidden in enumerate(layer_outputs):
+                scalar = hidden[:, -1, :].norm(dim=-1).sum()
+                is_last_layer = layer_idx == num_layers - 1
+                retain = not is_last_layer or eval_config.enable_attribution_per_head
+                grad = torch.autograd.grad(
+                    scalar,
+                    inputs_embeds,
+                    retain_graph=retain,
+                )[0]
+                per_layer_grads.append(grad.norm(dim=-1).detach())
+
+                if eval_config.enable_attribution_per_head:
+                    # (B, S, H*d_head) -> (B, S, H, d_head)
+                    pre_proj = o_proj_inputs[layer_idx]
+                    b, s, _ = pre_proj.shape
+                    pre_proj_heads = pre_proj.view(b, s, num_heads, head_dim)
+                    head_grads_per_head: list[torch.Tensor] = []
+                    for head_idx in range(num_heads):
+                        # scalar = ||pre_proj[:, -1, h, :]||_2 summed over batch
+                        head_scalar = (
+                            pre_proj_heads[:, -1, head_idx, :].norm(dim=-1).sum()
+                        )
+                        last_head = head_idx == num_heads - 1
+                        head_retain = not (is_last_layer and last_head)
+                        head_grad = torch.autograd.grad(
+                            head_scalar,
+                            inputs_embeds,
+                            retain_graph=head_retain,
+                        )[0]
+                        # (B, S) grad norm over embedding dim
+                        head_grads_per_head.append(head_grad.norm(dim=-1).detach())
+                    # (H, B, S) -> (B, H, S)
+                    per_layer_head_grads.append(
+                        torch.stack(head_grads_per_head).permute(1, 0, 2),
+                    )
+            grad_norms = torch.stack(per_layer_grads)  # (num_layers, batch, seq_len)
+
             mask = attention_mask.to(dtype=grad_norms.dtype)
-            batch_sum = (grad_norms * mask).sum(dim=0).detach().cpu()
-            batch_count = mask.sum(dim=0).detach().cpu()
+            batch_sum = (grad_norms * mask.unsqueeze(0)).sum(dim=1).detach()
+            batch_count = attention_mask.sum(dim=0).detach()
 
-            attribution_sum += batch_sum.to(dtype=torch.float64)
-            attribution_count += batch_count.to(dtype=torch.int64)
+            attribution_sum += batch_sum.to(dtype=attribution_sum.dtype)
+            attribution_count += batch_count.to(dtype=attribution_count.dtype)
+
+            if eval_config.enable_attribution_per_head:
+                assert per_head_attribution_sum is not None
+                # (num_layers, batch, num_heads, seq_len)
+                head_grad_norms = torch.stack(per_layer_head_grads)
+                # mask is (batch, seq_len); broadcast over layers and heads
+                head_mask = mask.unsqueeze(0).unsqueeze(2)
+                head_batch_sum = (head_grad_norms * head_mask).sum(dim=1).detach()
+                per_head_attribution_sum += head_batch_sum.to(
+                    dtype=per_head_attribution_sum.dtype,
+                )
+                del head_grad_norms, head_mask, head_batch_sum
 
             del (
                 inputs,
                 outputs,
-                logits,
-                probs,
-                target_ids,
-                target_probs,
-                grads,
+                per_layer_grads,
+                per_layer_head_grads,
                 grad_norms,
                 mask,
                 batch_sum,
                 batch_count,
             )
-            torch.cuda.empty_cache()
+            layer_outputs.clear()
+            o_proj_inputs.clear()
         else:
             with torch.inference_mode():
                 outputs = model(
@@ -384,14 +496,25 @@ def evaluate_model(
         save_wrapper_stats(model, save_path, eval_config.sequence_length)
 
     if eval_config.enable_attribution:
+        for handle in hook_handles_attr:
+            handle.remove()
+        hook_handles_attr.clear()
+
         assert attribution_sum is not None
         assert attribution_count is not None
 
         logger.info("Saving attribution statistics")
-        attribution_mean = attribution_sum / attribution_count
+        attribution_mean = (attribution_sum / attribution_count.unsqueeze(0)).cpu()
+        per_head_attribution_mean: torch.Tensor | None = None
+        if eval_config.enable_attribution_per_head:
+            assert per_head_attribution_sum is not None
+            per_head_attribution_mean = (
+                per_head_attribution_sum / attribution_count.view(1, 1, -1)
+            ).cpu()
         save_attribution_stats(
             attribution_mean,
             save_path,
+            per_head_attribution=per_head_attribution_mean,
         )
 
     if eval_config.enable_attention_stats:

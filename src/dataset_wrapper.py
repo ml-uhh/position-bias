@@ -50,21 +50,26 @@ class DatasetWrapper(IterableDataset):  # type: ignore[misc]
         else:
             iterator = (self.dataset[i] for i in range(len(self.dataset)))  # pyright: ignore[reportArgumentType]
 
-        while True:
-            try:
-                sample = next(iterator)
-                text = sample["text"]
-                tokenized = self.tokenizer(  # pyright: ignore[reportCallIssue]
-                    text,
-                    padding=False,
-                    truncation=True,
-                    max_length=self.seq_length,
-                    return_tensors="pt",
-                )
-                if tokenized["input_ids"].shape[-1] == self.seq_length:  # pyright: ignore[reportAttributeAccessIssue]
-                    yield {
-                        k: rearrange(v, "1 ... -> ...") for k, v in tokenized.items()
-                    }
+        try:
+            while True:
+                try:
+                    sample = next(iterator)
+                    text = sample["text"]
+                    tokenized = self.tokenizer(  # pyright: ignore[reportCallIssue]
+                        text,
+                        padding=False,
+                        truncation=True,
+                        max_length=self.seq_length,
+                        return_tensors="pt",
+                    )
+                    if tokenized["input_ids"].shape[-1] == self.seq_length:  # pyright: ignore[reportAttributeAccessIssue]
+                        yield {
+                            k: rearrange(v, "1 ... -> ...") for k, v in tokenized.items()
+                        }
 
-            except StopIteration:
-                break
+                except StopIteration:
+                    break
+        finally:
+            close = getattr(iterator, "close", None)
+            if callable(close):
+                close()
