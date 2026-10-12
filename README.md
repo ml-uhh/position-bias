@@ -1,13 +1,52 @@
 # A Structural Theory of Position Bias in Transformers
 
-Code for [A Structural Theory of Position Bias in Transformers](https://arxiv.org/abs/2602.16837)
-by Hanna Herasimchyk, Robin Labryga, Tomislav Prusina, and Sören Laue.
+[![Paper](https://img.shields.io/badge/arXiv-2602.16837-b31b1b.svg)](https://arxiv.org/abs/2602.16837)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
+Code for **A Structural Theory of Position Bias in Transformers** by Hanna
+Herasimchyk, Robin Labryga, Tomislav Prusina, and Sören Laue.
 
 This repository reproduces the measurements, controlled rollouts, ablations,
 tables, and figures reported in the accompanying paper. It covers five ALiBi
 models and five RoPE models on FineWeb-Edu, DCLM-Baseline, and Wikipedia at
 sequence length 256, together with the 2048-token, blank-out, approximation,
 mixing-calibration, monotonicity, and intervention analyses.
+
+## Overview
+
+Causal attention alone drives rollout mass toward early tokens. A fixed
+residual weight slows this concentration but does not recover the profiles of
+pretrained Transformers. We instead use the layerwise transition
+
+$$
+R^{(t)}=(1-\lambda_t)I+\lambda_t A^{(t)},
+$$
+
+where the adaptive mixing schedule is measured from forward activations
+without using the influence target. Across 30 model-dataset settings, this
+residual-aware rollout reduces the mean Wasserstein distance to measured token
+influence from 0.62 for attention-only rollout and 0.60 for fixed residual
+mixing to 0.09.
+
+The representative profiles below use 256-token FineWeb-Edu sequences.
+
+### Representative ALiBi profile: Falcon-RW-7B
+
+| Attention-only | Fixed residual | Adaptive residual | Measured influence |
+| :---: | :---: | :---: | :---: |
+| <img src="figures/readme/alibi_attention_only.png" width="220" alt="ALiBi attention-only rollout"> | <img src="figures/readme/alibi_fixed_residual.png" width="220" alt="ALiBi fixed-residual rollout"> | <img src="figures/readme/alibi_adaptive.png" width="220" alt="ALiBi adaptive residual-aware rollout"> | <img src="figures/readme/alibi_measured.png" width="220" alt="Measured ALiBi token influence"> |
+
+### Representative RoPE profile: Qwen3-8B-Base
+
+| Attention-only | Fixed residual | Adaptive residual | Measured influence |
+| :---: | :---: | :---: | :---: |
+| <img src="figures/readme/rope_attention_only.png" width="220" alt="RoPE attention-only rollout"> | <img src="figures/readme/rope_fixed_residual.png" width="220" alt="RoPE fixed-residual rollout"> | <img src="figures/readme/rope_adaptive.png" width="220" alt="RoPE adaptive residual-aware rollout"> | <img src="figures/readme/rope_measured.png" width="220" alt="Measured RoPE token influence"> |
+
+### Measured residual-mixing schedules
+
+| ALiBi models | RoPE models |
+| :---: | :---: |
+| <img src="figures/readme/lambda_alibi.png" width="440" alt="Measured ALiBi residual-mixing schedules"> | <img src="figures/readme/lambda_rope.png" width="440" alt="Measured RoPE residual-mixing schedules"> |
 
 ## Installation
 
