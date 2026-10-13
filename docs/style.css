@@ -7,7 +7,7 @@
 .opening h1{font-size:clamp(52px,6.5vw,76px);margin-bottom:24px}.opening-lead{margin-bottom:16px}.opening-context{max-width:760px;font-size:15px;line-height:1.65;margin-bottom:28px}.has-intro .sentence-middle,.has-intro .opening-caption,.opening.replaying .sentence-middle,.opening.replaying .opening-caption{animation-duration:6s}.has-intro:not(.intro-done) .page-content{animation-delay:5.8s}
 /* One shared style for explanatory section headings, distinct from chart labels. */
 .opening-sentence{font-size:clamp(16px,2.2vw,24px);white-space:nowrap;letter-spacing:-.025em}.opening-sentence>span{display:inline}
-@media(max-width:760px){.opening-sentence{font-size:18px;white-space:normal}}
+@media(max-width:760px){.opening-sentence{font-size:clamp(18px,3.5vw,26px);white-space:normal}.opening-sentence>span{display:block}}
 .chart-header{min-height:68px}.approach-label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}.chart-panel[data-variant="adaptive"] .approach-label{color:var(--green)}.chart-header>.chart-rule{padding-top:20px}
 article>.opening,article .hero,article .prose,article .experiment{width:100%;max-width:none;margin-left:0;margin-right:0}
 article .lead,article .opening-context,article .chart-intro,article .technical-note{max-width:none}
