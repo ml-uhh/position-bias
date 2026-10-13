@@ -3,6 +3,8 @@
 [![Paper](https://img.shields.io/badge/arXiv-2602.16837-b31b1b.svg)](https://arxiv.org/abs/2602.16837)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
+[Read the illustrated explanation and explore the rollout animation](https://ml-uhh.github.io/position-bias/).
+
 Code for **A Structural Theory of Position Bias in Transformers** by Hanna
 Herasimchyk, Robin Labryga, Tomislav Prusina, and Sören Laue.
 

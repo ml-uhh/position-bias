@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="An animated explanation of where position bias in causal Transformers can originate, using actual rollout results from A Structural Theory of Position Bias in Transformers.">
+  <meta name="theme-color" content="#f7f6f1">
+  <title>A Structural Explanation for Position Bias in Transformers</title>
+  <script>document.documentElement.classList.add('has-intro');</script>
+  <link rel="stylesheet" href="style.css">
+  <script src="data.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header class="masthead"><a href="https://arxiv.org/abs/2602.16837">A Structural Theory of Position Bias in Transformers</a><span>Research explained</span></header>
+    <article>
+      <section class="opening" aria-labelledby="position-bias-title">
+        <h1 id="position-bias-title">A Structural Explanation for Position Bias in Transformers</h1>
+        <p class="byline">Hanna Herasimchyk · Robin Labryga · Tomislav Prusina · Sören Laue</p>
+        <nav class="links" aria-label="Research links"><a href="https://arxiv.org/abs/2602.16837">Read the paper <span aria-hidden="true">↗</span></a><a href="https://github.com/ml-uhh/position-bias">Explore the code <span aria-hidden="true">↗</span></a><a href="#animation">See it unfold <span aria-hidden="true">↓</span></a></nav>
+        <p class="lead opening-lead">A Transformer can give different influence to the same information depending on where it appears.</p>
+        <p class="opening-context">When information in the middle is underused compared with information near the beginning or end, this is often called <em>Lost in the Middle</em>.</p>
+        <p class="opening-sentence" aria-label="A language model should use all the relevant information wherever it appears in the context."><span aria-hidden="true">A language model should use</span><span class="sentence-middle" aria-hidden="true">all the relevant information</span><span aria-hidden="true">wherever it appears in the context.</span></p>
+        <div class="opening-bottom"><div class="opening-caption"><span>An illustration of position bias: information in the middle receives less influence.</span></div><button type="button" id="opening-control" class="quiet">Continue</button></div>
+      </section>
+      <div class="page-content">
+      <header class="hero">
+        <p class="eyebrow">The mechanism</p>
+        <h2>The architectural origins.</h2>
+        <p class="lead">Part of that imbalance can originate in the architecture itself.</p>
+      </header>
+
+      <section class="prose intro" aria-labelledby="origin-title">
+        <p class="eyebrow">Across layers</p>
+        <h2 id="origin-title">Every layer changes the balance.</h2>
+        <p>Causal attention only looks backward. Repeating this transport across layers creates a pull toward earlier tokens, or <em>primacy</em>. Residual connections preserve the current representation, counteracting that pull. Positional encoding changes which earlier positions are favored. The balance between these mechanisms can produce broad profiles with both primacy and recency peaks.</p>
+        <p>We trace influence through successive layers by combining the paths through attention and residual connections. This is called <em>attention rollout</em>. We test it with ALiBi and RoPE, two common ways Transformers encode token position.</p>
+      </section>
+
+      <section class="experiment" id="animation" aria-labelledby="animation-title">
+        <div class="section-top"><div><p class="eyebrow">Follow the influence</p><h2 id="animation-title">Same architecture. Three mixing rules.</h2></div><span class="context">Falcon-RW-7B · ALiBi<br>256 tokens · FineWeb-Edu</span></div>
+        <p class="chart-intro">We measure how strongly each input token affects the model’s next-token prediction and compare this with the rollout prediction. Press play to follow the predicted influence across layers. At the final layer, the dashed curve shows the measured influence.</p>
+        <div class="controls">
+          <button id="play" type="button">Play through layers</button>
+          <label for="depth">Layer <output id="depth-value" for="depth">36 / 36</output></label>
+          <input id="depth" type="range" min="0" max="36" value="36" step="1" aria-label="Number of composed layers">
+          <button id="final" class="quiet" type="button">Final result</button>
+        </div>
+        <div class="charts" id="animation-charts"></div>
+        <p class="legend"><span><i class="line" aria-hidden="true"></i>Rollout prediction</span><span><i class="line measured" aria-hidden="true"></i>Measured influence (final layer)</span></p>
+        <p id="frame-note" class="frame-note" aria-live="polite"></p>
+        <p class="technical-note">Linear y axes scale separately to keep each profile readable. All curves sum to one. The dashed curve is the full model’s measured gradient influence; it appears only at the final layer. Profile distance is normalized Wasserstein distance: smaller means closer, with token positions scaled to [0, 1].</p>
+        <noscript><img src="rollout-final.png" alt="Final Falcon-RW-7B results. Attention-only and fixed residual rollouts concentrate near the first token, while adaptive residual mixing matches a broad measured profile. Distances are 0.66, 0.63, and 0.03."></noscript>
+      </section>
+
+      <section class="prose" aria-labelledby="mixing-title">
+        <p class="eyebrow">The mixing schedule</p>
+        <h2 id="mixing-title">Residuals matter. Their strength matters too.</h2>
+        <p>An attention-only rollout sends everything through attention. A fixed residual rollout divides the weight equally between attention and preservation. We instead measure their relative strength at each layer from forward activations.</p>
+        <div class="formula" aria-label="Layer transition equals one minus lambda times identity plus lambda times the attention transport kernel"><span>R<sup>(t)</sup> = (1 − λ<sub>t</sub>) I + λ<sub>t</sub> A<sup>(t)</sup></span><p>Preserve the current position <span aria-hidden="true">+</span> transport influence through attention</p></div>
+        <p>Here, I preserves position and A<sup>(t)</sup> transports influence through attention. The coefficient λ<sub>t</sub> measures the attention branch’s share, accounting for reinforcement and cancellation between the two branches. We estimate the schedule independently of the influence curves used to evaluate the prediction. No rollout parameter is fitted to those curves.</p>
+      </section>
+
+      <section class="experiment rope-section" aria-labelledby="rope-title">
+        <div class="section-top"><div><p class="eyebrow">Beyond ALiBi</p><h2 id="rope-title">The same comparison, with RoPE.</h2></div><label class="model-label" for="rope-model">Model<select id="rope-model"></select></label></div>
+        <p class="chart-intro">These are the final profiles from our reported runs. Select a model to compare the three rollout predictions with measured influence.</p>
+        <div class="charts" id="rope-charts"></div>
+        <p class="legend"><span><i class="line" aria-hidden="true"></i>Rollout prediction</span><span><i class="line measured" aria-hidden="true"></i>Measured influence</span></p>
+        <p class="technical-note">256 tokens · FineWeb-Edu. Separate linear y axes. Profile distance is normalized Wasserstein distance: smaller means closer, with token positions scaled to [0, 1].</p>
+      </section>
+
+      <section class="prose closing" aria-labelledby="finding-title">
+        <p class="eyebrow">The evidence</p>
+        <h2 id="finding-title">A structural explanation, tested against real models.</h2>
+        <p>For ALiBi, we remove the content-dependent attention scores and retain the causal mask and positional slopes. For RoPE, position and content are intertwined. We therefore average token contributions across the corpus, accounting for the value and output projections that determine what attention writes into the model’s internal representation. Both constructions use the same residual mixing framework.</p>
+        <p>Across ten models and three corpora, adaptive residual mixing reduces the mean Wasserstein distance to measured influence from <strong>0.62</strong> for attention-only rollout and <strong>0.60</strong> for fixed residual mixing to <strong>0.09</strong>, approximately an <strong>85% reduction</strong> relative to either baseline.</p>
+        <p>Position bias does not require a learned preference for specific content. The architecture supplies a structural prior, and measuring the attention–residual balance makes its prediction much closer to observed influence. Although we measure token influence rather than downstream task accuracy, the profiles show the same broad pattern observed in Lost-in-the-Middle evaluations: stronger influence near the beginning and end, with weaker influence in the middle.</p>
+      </section>
+      <footer><div><strong>A Structural Theory of Position Bias in Transformers</strong><p><a href="https://arxiv.org/abs/2602.16837">Paper</a> · <a href="https://github.com/ml-uhh/position-bias">Code</a> · <a href="lost-in-the-middle.gif">Opening GIF</a> · <a href="rollout-animation.gif">Rollout GIF</a> · <a href="provenance.json">Figure data sources</a></p></div><span>Actual rollouts.<br>Measured influence.</span></footer>
+      </div>
+    </article>
+  </main>
+</body>
+</html>

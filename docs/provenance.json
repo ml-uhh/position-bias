@@ -1,0 +1,110 @@
+{
+  "animation": "Falcon-RW-7B, n=256, FineWeb-Edu. Frames are exact last rows of R_t ... R_1, starting from the identity. Content logits are zero; original positional slopes and measured Frobenius norm-Shapley schedule are used.",
+  "measured": "Saved corpus-average gradient influence, normalized across input positions. Only the full-model measurement is overlaid, at the final animation frame.",
+  "rope": "Final reported profiles only, taken directly from the manuscript figure CSVs. No interpolation between model depths or inferred RoPE kernels.",
+  "sources": [
+    {
+      "path": "results/alibi-three-norm-paper-1000/falcon-rw-7b/256/alibi_three_norm_results.npz",
+      "sha256": "1290dcec3a6a99d6ef58ab6f7fccaf59a6b01a5bcaa118b2fbb7858ca90605ef"
+    },
+    {
+      "path": "config/rollout/alibi/no_content/falcon-rw-7b-noresidual.yaml",
+      "sha256": "f06c51a7cb66cadf06cfbf5e9d84860c33ea4fe8ff3867238ca8556740aa0773"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/falcon-rw-7b-fixed-half/last_row_distribution.csv",
+      "sha256": "c40ef3e8ea0d047df26b301caae3e882cfee3aac27a8d504d591a990bbbd5a61"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/falcon-rw-7b/last_row_distribution.csv",
+      "sha256": "8f7dae97dbd3bacffbc004a1adf0af1eb250b7deed4b875a3a204c1b60e7f679"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen3-8b-noresidual/last_row_distribution.csv",
+      "sha256": "7d231a379dcee45741878eb2344c84e8804f618c59342e2b757a069875a8d92c"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen3-8b-fixed-half/last_row_distribution.csv",
+      "sha256": "cb1c7ec5cf6feef58768f8ca9b90101071e83374556a598212a4aa43b501adfa"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen3-8b-adaptive/last_row_distribution.csv",
+      "sha256": "c22c7d5c3bc3cba16a604dea9ac3e818faccd213719cac6d102123390c189197"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen3-8b-measured/last_row_distribution.csv",
+      "sha256": "cc00778ada93fa4f1d84c04ca3fcfc7cfbfaa75c9aa7d512815c863aa5cb0086"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen2.5-7b-noresidual/last_row_distribution.csv",
+      "sha256": "c27988e86faafa39226df764cd5fb0655b7e5e281ac81d1bb7ca80f6df4f8d19"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen2.5-7b-fixed-half/last_row_distribution.csv",
+      "sha256": "1cce3b4ed2fe90db589387d786624c5d8eec9960c0c5751a7e9ca5ce40fdd829"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen2.5-7b-adaptive/last_row_distribution.csv",
+      "sha256": "8eac8a350ed27862aae0cfe804ac5c8b63130f3daba7fc2e926184221bea71b1"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen2.5-7b-measured/last_row_distribution.csv",
+      "sha256": "ea753f61c437278790b76873f6c183db6dad74585b7e1c0bb747ade72ab23724"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen2.5-32b-noresidual/last_row_distribution.csv",
+      "sha256": "c5b23bb388c6c7e1e58402fe075546f918bd5aac012b96dd92d6f3814e705496"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen2.5-32b-fixed-half/last_row_distribution.csv",
+      "sha256": "b5bff0c5e2a9863abd848fa93536c6c27674c3646d9c86f64e82d28ead844e74"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen2.5-32b-adaptive/last_row_distribution.csv",
+      "sha256": "b0e95cda5b2374e4872d36ba7eec8863bb8d183db388afbe64c392722dd3a8fb"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen2.5-32b-measured/last_row_distribution.csv",
+      "sha256": "67097583491a404aab5454400ba85fd20d350b65ddc728e9bba21cdb77c30d20"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen2.5-72b-noresidual/last_row_distribution.csv",
+      "sha256": "bb21d48f54f4ed34922294e6ccf4098ffc9ffe35c95c57e6a87f3ca531db5fc7"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen2.5-72b-fixed-half/last_row_distribution.csv",
+      "sha256": "dbde970f625276e3a15a8ea4ff8d809fc5238a1a9d2594afe75119d0ede74829"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen2.5-72b-adaptive/last_row_distribution.csv",
+      "sha256": "db0051155738941ff93a996d881a6141e3247e35a4660d6311a7e62d6e96b123"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/qwen2.5-72b-measured/last_row_distribution.csv",
+      "sha256": "8f2ad551b21709c8a33c22c143a4de5d7d24e17fd95140bb10db1372d9c49c87"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/smollm3-3b-noresidual/last_row_distribution.csv",
+      "sha256": "93d66c9d3d0ef6d2e93f9c1d60245897b45f3ea6267286bfc3b940b194ecd521"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/smollm3-3b-fixed-half/last_row_distribution.csv",
+      "sha256": "e4a1b5da62d8cd5ac548d026cc3a29e4c5e1d8efd22c301fe55918111f9b1f8a"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/smollm3-3b-adaptive/last_row_distribution.csv",
+      "sha256": "6638f83d690a6379808b72add8658af4dc9113a5c40df7f3c41cb9c61fcbad10"
+    },
+    {
+      "path": "paper_ICLR/figures/rollout/rope/smollm3-3b-measured/last_row_distribution.csv",
+      "sha256": "0ae3c979132fa0d2e5b24e0b37cfc3f01727418ccd070b8d89b653c5e9ac9a6e"
+    }
+  ],
+  "max_abs_adaptive_endpoint_error": 1.214306433183765e-17,
+  "w1": {
+    "attention": 0.6559862824477316,
+    "fixed": 0.6301879536693786,
+    "adaptive": 0.031186536618101526
+  },
+  "validation": "Animated fixed and adaptive endpoints match manuscript CSVs. The attention-only endpoint is recomputed directly from the published zero-content ALiBi parameters. RoPE curves are loaded directly from manuscript CSV files. W1 uses token distance divided by n-1."
+}
