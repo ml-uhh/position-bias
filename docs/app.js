@@ -48,9 +48,13 @@
       const panel = document.createElement("div");
       panel.className = "chart-panel"; panel.dataset.variant = variant;
       const heading = document.createElement("div"); heading.className = "chart-header";
+      const headingGroup = document.createElement("div"); headingGroup.className = "chart-heading";
+      const approach = document.createElement("div"); approach.className = "approach-label";
+      approach.textContent = variant === "adaptive" ? "Our approach" : "Baseline";
       const h3 = document.createElement("h3"); h3.textContent = names[variant];
       const rule = document.createElement("div"); rule.className = "chart-rule"; rule.textContent = rules[variant];
-      heading.append(h3,rule);
+      headingGroup.append(approach,h3);
+      heading.append(headingGroup,rule);
       const svg = el("svg",{role:"img"});
       const metric = document.createElement("p"); metric.className = "distance";
       const metricName = document.createElement("span"); metricName.textContent = "Profile distance";
